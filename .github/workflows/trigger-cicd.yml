@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Trigger External CI/CD Repo
         run: |
-          curl -X POST https://api.github.com/repos/<ORG_OR_USERNAME>/salesforce-cicd-pipeline/dispatches \
+          curl -X POST https://api.github.com/repos/abhishekpotdar722-ai/salesforce-cicd-pipeline/dispatches \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.PIPELINE_TRIGGER_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
