@@ -42,11 +42,12 @@ jobs:
       # --------------------------------------------------
       - name: Print Copado Payload Fields
         run: |
+          echo "Promotion Name: ${{ github.event.client_payload.promotionName }}"
+          echo "User Story: ${{ github.event.client_payload.userStory }}"
           echo "Status: ${{ github.event.client_payload.status }}"
-          echo "Deployment Status: ${{ github.event.client_payload.deploymentStatus }}"
           echo "Environment: ${{ github.event.client_payload.environment }}"
+          echo "Metadata Count: ${{ github.event.client_payload.metadataCount }}"
           echo "Components Deployed: ${{ toJson(github.event.client_payload.componentsDeployed) }}"
-
       # --------------------------------------------------
       # EXPORT METADATA TO ENV VARIABLES
       # --------------------------------------------------
