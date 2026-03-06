@@ -1,0 +1,102 @@
+name: Playwright Validation
+
+on:
+  repository_dispatch:
+    types: [copado_deploy_result]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Checkout repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Install Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Install dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # Install Playwright browsers
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      # --------------------------------------------------
+      # DEBUG FULL PAYLOAD (VERY IMPORTANT)
+      # --------------------------------------------------
+      - name: Print Full GitHub Event Payload
+        run: |
+          echo "----- FULL EVENT PAYLOAD -----"
+          echo '${{ toJson(github.event) }}'
+          echo "--------------------------------"
+
+      # --------------------------------------------------
+      # PRINT COPADO PAYLOAD FIELDS
+      # --------------------------------------------------
+      - name: Print Copado Payload Fields
+        run: |
+          echo "Status: ${{ github.event.client_payload.status }}"
+          echo "Deployment Status: ${{ github.event.client_payload.deploymentStatus }}"
+          echo "Environment: ${{ github.event.client_payload.environment }}"
+          echo "Components Deployed: ${{ toJson(github.event.client_payload.componentsDeployed) }}"
+
+      # --------------------------------------------------
+      # EXPORT METADATA TO ENV VARIABLES
+      # --------------------------------------------------
+      - name: Export Metadata Variables
+        run: |
+          echo "DEPLOY_STATUS=${{ github.event.client_payload.status }}" >> $GITHUB_ENV
+          echo "DEPLOY_ENV=${{ github.event.client_payload.environment }}" >> $GITHUB_ENV
+          echo "DEPLOY_COMPONENTS=${{ toJson(github.event.client_payload.componentsDeployed) }}" >> $GITHUB_ENV
+
+      # --------------------------------------------------
+      # RUN PLAYWRIGHT TESTS IF DEPLOYMENT SUCCESS
+      # --------------------------------------------------
+      - name: Run Playwright Tests
+        if: github.event.client_payload.status == 'Completed'
+        run: |
+          echo "Deployment completed successfully."
+          echo "Environment: $DEPLOY_ENV"
+          echo "Components deployed: $DEPLOY_COMPONENTS"
+
+          npx playwright test
+
+      # --------------------------------------------------
+      # SKIP TESTS IF DEPLOYMENT FAILED
+      # --------------------------------------------------
+      - name: Skip Tests if Deployment Failed
+        if: github.event.client_payload.status != 'Completed'
+        run: |
+          echo "Deployment was not successful."
+          echo "Skipping Playwright tests."
+
+      # --------------------------------------------------
+      # SEND EMAIL NOTIFICATION
+      # --------------------------------------------------
+      - name: Send Email Notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: Copado Deployment Result
+          to: abhishek@example.com
+          from: CI-CD
+          body: |
+            Copado Deployment Notification
+
+            Status: ${{ github.event.client_payload.status }}
+            Environment: ${{ github.event.client_payload.environment }}
+
+            Components Deployed:
+            ${{ toJson(github.event.client_payload.componentsDeployed) }}
+
+            Playwright tests executed automatically if deployment succeeded.
