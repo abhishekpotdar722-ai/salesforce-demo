@@ -1,0 +1,66 @@
+name: Extract Components and Trigger Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare-payload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Hardcode Copado Payload
+        id: payload
+        run: |
+          cat <<EOF > payload.json
+          {
+            "promotionName": "P00022",
+            "userStory": "US-0000029",
+            "status": "Completed",
+            "environment": "a0cfn000001LzBBAA0",
+            "metadataCount": 2,
+            "componentsDeployed": [
+              "Account.textfortesting__c",
+              "Account.Dummy_testing__c",
+              "Contact",
+              "Flow",
+              "Contact"
+            ]
+          }
+          EOF
+      - name: Convert Components to Test Tags
+        id: tags
+        run: |
+      
+          TAGS=""
+      
+          for comp in $(jq -r '.componentsDeployed[]' payload.json | sort -u); do
+      
+            if [[ $comp == Account* ]]; then
+              TAGS="$TAGS @account"
+            elif [[ $comp == Contact* ]]; then
+              TAGS="$TAGS @contact"
+            elif [[ $comp == Flow* ]]; then
+              TAGS="$TAGS @flow"
+            fi
+      
+          done
+      
+          TAGS=$(echo $TAGS | tr ' ' '\n' | sort -u | tr '\n' ' ')
+      
+          echo "Tags generated:"
+          echo $TAGS
+      
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+    - name: Trigger Playwright Repo
+      run: |
+        curl -X POST \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer ${{ secrets.PIPELINE_TRIGGER_TOKEN }}" \
+        https://api.github.com/repos/abhishekpotdar722-ai/salesforce-cicd-pipeline/dispatches \
+        -d '{
+          "event_type": "copado",
+          "client_payload": {
+            "TEST_EXEC_INPUT_TYPE": "Label",
+            "TEST_EXEC_INPUT_VALUE": "${{ steps.tags.outputs.tags }}"
+          }
+        }'
