@@ -27,27 +27,43 @@ jobs:
             ]
           }
           EOF
+
       - name: Convert Components to Test Tags
         id: tags
         run: |
       
           TAGS=""
+          OBJECTS=""
       
-          for comp in $(jq -r '.componentsDeployed[]' payload.json | sort -u); do
-      
-            if [[ $comp == Account* ]]; then
-              TAGS="$TAGS @account"
-            elif [[ $comp == Contact* ]]; then
-              TAGS="$TAGS @contact"
-            elif [[ $comp == Flow* ]]; then
-              TAGS="$TAGS @flow"
-            fi
-      
+          # Extract object names
+          for comp in $(jq -r '.componentsDeployed[]' payload.json); do
+            obj=$(echo "$comp" | cut -d'.' -f1)
+            OBJECTS="$OBJECTS $obj"
           done
       
-          TAGS=$(echo $TAGS | tr ' ' '\n' | sort -u | tr '\n' ' ')
+          # Get unique objects
+          UNIQUE_OBJECTS=$(echo $OBJECTS | tr ' ' '\n' | sort -u)
       
-          echo "Tags generated:"
+          echo "Unique Objects:"
+          echo "$UNIQUE_OBJECTS"
+      
+          # Generate lowercase object list
+          for obj in $UNIQUE_OBJECTS; do
+            TAGS="$TAGS $(echo $obj | tr '[:upper:]' '[:lower:]')"
+          done
+      
+          # Count unique objects
+          COUNT=$(echo "$UNIQUE_OBJECTS" | wc -l)
+      
+          # Add regression if >= 3 objects
+          if [ "$COUNT" -ge 3 ]; then
+            TAGS="$TAGS regression"
+          fi
+      
+          # Normalize → remove duplicates → convert to comma-separated
+          TAGS=$(echo $TAGS | tr ' ' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
+      
+          echo "Final Tags:"
           echo $TAGS
       
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
